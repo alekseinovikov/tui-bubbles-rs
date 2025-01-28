@@ -74,7 +74,7 @@ impl App {
         loop {
             tokio::time::sleep(fps_duration).await;
             {
-                let model = model.lock().await;
+                let mut model = model.lock().await;
                 terminal.draw(|frame| {
                     model.draw(frame);
                 }).expect("Failed to draw");
