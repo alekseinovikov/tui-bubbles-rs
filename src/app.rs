@@ -13,10 +13,10 @@ pub(crate) struct App {
 }
 
 impl App {
-    pub(crate) fn new(fps: u8) -> App {
+    pub(crate) fn new(fps: u8, terminal: &DefaultTerminal) -> App {
         let fps_duration = Duration::from_secs(1) / fps as u32;
         App {
-            model: Arc::new(Mutex::new(Model::new())),
+            model: Arc::new(Mutex::new(Model::new(terminal))),
             fps_duration,
         }
     }
