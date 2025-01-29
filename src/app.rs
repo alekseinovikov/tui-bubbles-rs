@@ -1,11 +1,11 @@
 use crate::model;
+use crate::model::RunningState;
 use crossterm::event;
 use model::{Message, Model};
-use ratatui::{DefaultTerminal, Frame};
+use ratatui::DefaultTerminal;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use crate::model::RunningState;
 
 pub(crate) struct App {
     model: Arc<Mutex<Model>>,
@@ -13,15 +13,15 @@ pub(crate) struct App {
 }
 
 impl App {
-    pub(crate) fn new(fps: u8, terminal: &DefaultTerminal) -> App {
+    pub(crate) fn new(fps: u8, terminal: &DefaultTerminal, max_size: f64, speed: f64) -> App {
         let fps_duration = Duration::from_secs(1) / fps as u32;
         App {
-            model: Arc::new(Mutex::new(Model::new(terminal))),
+            model: Arc::new(Mutex::new(Model::new(terminal, max_size, speed))),
             fps_duration,
         }
     }
 
-    pub(crate) async fn run(&self, mut terminal: DefaultTerminal) {
+    pub(crate) async fn run(&self, terminal: DefaultTerminal) {
         let model = self.model.clone();
         let fps_duration = self.fps_duration.clone();
         tokio::spawn(async move {
@@ -68,16 +68,20 @@ impl App {
         }
     }
 
-    async fn draw_state_loop(model: Arc<Mutex<Model>>,
-                             mut terminal: DefaultTerminal,
-                             fps_duration: Duration) {
+    async fn draw_state_loop(
+        model: Arc<Mutex<Model>>,
+        mut terminal: DefaultTerminal,
+        fps_duration: Duration,
+    ) {
         loop {
             tokio::time::sleep(fps_duration).await;
             {
                 let mut model = model.lock().await;
-                terminal.draw(|frame| {
-                    model.draw(frame);
-                }).expect("Failed to draw");
+                terminal
+                    .draw(|frame| {
+                        model.draw(frame);
+                    })
+                    .expect("Failed to draw");
             }
         }
     }

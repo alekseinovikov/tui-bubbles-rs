@@ -1,10 +1,11 @@
 use crate::bubble::Bubble;
 use crossterm::event::KeyCode;
+use rand::Rng;
 use ratatui::layout::Constraint;
 use ratatui::prelude::{Color, Layout, Rect, Size, Widget};
 use ratatui::symbols::Marker;
 use ratatui::widgets::canvas::{Canvas, Circle};
-use ratatui::{DefaultTerminal, Frame, Terminal};
+use ratatui::{DefaultTerminal, Frame};
 use std::collections::HashMap;
 
 pub(crate) enum Message {
@@ -30,7 +31,7 @@ pub(crate) struct Model {
 }
 
 impl Model {
-    pub(crate) fn new(terminal: &DefaultTerminal) -> Model {
+    pub(crate) fn new(terminal: &DefaultTerminal, max_size: f64, speed: f64) -> Model {
         let terminal_size = terminal.size().expect("Failed to get terminal size");
         let keys_layout = Self::create_keyboard_layout();
         let button_size = Self::calculate_button_size(&keys_layout, terminal_size);
@@ -40,8 +41,8 @@ impl Model {
             state: RunningState::Running,
             bubbles: vec![],
             min_bubble_size: 0.0,
-            max_bubble_size: 10.0,
-            speed: 1.0,
+            max_bubble_size: max_size,
+            speed,
             keys_layout,
             button_size,
             keyboard_height,
@@ -85,8 +86,9 @@ impl Model {
     }
 
     fn add_circle(&mut self, key_code: &KeyCode) {
-        let new_bubble = self.create_bubble(key_code);
-        self.bubbles.push(new_bubble);
+        if let Some(new_bubble) = self.create_bubble(key_code) {
+            self.bubbles.push(new_bubble);
+        }
     }
 
     pub(crate) fn draw(&mut self, frame: &mut Frame) {
@@ -122,33 +124,34 @@ impl Model {
             .y_bounds([0.0, rect.height as f64])
     }
 
-    fn create_bubble(&self, key_code: &KeyCode) -> Bubble {
-        let (x, y) = self.get_position(key_code);
-        let color = self.get_color(key_code);
-        Bubble::new(
-            x,
-            y,
-            color,
-            self.min_bubble_size,
-            self.max_bubble_size,
-            self.speed,
-        )
+    fn create_bubble(&self, key_code: &KeyCode) -> Option<Bubble> {
+        self.get_position(key_code).map(|(x, y)| {
+            let color = self.get_color();
+            Bubble::new(
+                x,
+                y,
+                color,
+                self.min_bubble_size,
+                self.max_bubble_size,
+                self.speed,
+            )
+        })
     }
 
-    fn get_position(&self, key_code: &KeyCode) -> (f64, f64) {
-        let x = 30.0;
-        let y = 30.0;
-
-        return (x, y);
+    fn get_position(&self, key_code: &KeyCode) -> Option<(f64, f64)> {
+        self.keys_layout.get(key_code).map(|(row, column)| {
+            let x = *column as f64 * self.button_size.0 as f64 + self.button_size.0 as f64 / 2.0;
+            let y = *row as f64 * self.button_size.1 as f64 + self.button_size.1 as f64 / 2.0;
+            (x, y)
+        })
     }
 
-    fn get_color(&self, key_code: &KeyCode) -> Color {
-        match key_code {
-            KeyCode::Char('r') => Color::Red,
-            KeyCode::Char('g') => Color::Green,
-            KeyCode::Char('b') => Color::Blue,
-            _ => Color::White,
-        }
+    fn get_color(&self) -> Color {
+        let mut rng = rand::rng();
+        let r = rng.random::<u8>();
+        let g = rng.random::<u8>();
+        let b = rng.random::<u8>();
+        Color::Rgb(r, g, b)
     }
 
     fn clean_finished_bubbles(&mut self) {
