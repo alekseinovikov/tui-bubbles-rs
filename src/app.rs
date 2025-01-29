@@ -1,4 +1,4 @@
-use crate::model;
+use crate::{model, sound};
 use crate::model::RunningState;
 use crossterm::event;
 use model::{Message, Model};
@@ -57,6 +57,11 @@ impl App {
                 model.update(Message::Quit).await;
             }
             _ => {
+                if let Some(frequency) = sound::get_frequency_for_key(&key_event.code) {
+                    tokio::task::spawn_blocking(move || {
+                        sound::generate_sound(frequency, 200);
+                    });
+                }
                 model.update(Message::KeyPressed(key_event.code)).await;
             }
         }

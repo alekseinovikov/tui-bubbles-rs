@@ -3,6 +3,7 @@ use app::App;
 mod model;
 mod app;
 mod bubble;
+mod sound;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
