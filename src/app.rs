@@ -13,7 +13,7 @@ pub(crate) struct App {
 }
 
 impl App {
-    pub(crate) fn new(fps: u8, terminal: &DefaultTerminal, max_size: f64, speed: f64) -> App {
+    pub(crate) fn new(fps: u8, terminal: &DefaultTerminal, max_size: f64, speed: f64) -> Self {
         let fps_duration = Duration::from_secs(1) / fps as u32;
         App {
             model: Arc::new(Mutex::new(Model::new(terminal, max_size, speed))),
@@ -23,24 +23,17 @@ impl App {
 
     pub(crate) async fn run(&self, terminal: DefaultTerminal) {
         let model = self.model.clone();
-        let fps_duration = self.fps_duration.clone();
-        tokio::spawn(async move {
-            Self::draw_state_loop(model, terminal, fps_duration).await;
-        });
+        let fps_duration = self.fps_duration;
+
+        tokio::spawn(Self::draw_state_loop(model, terminal, fps_duration));
 
         self.handle_key_events().await;
     }
 
     async fn handle_key_events(&self) {
         loop {
-            {
-                let model = self.model.lock().await;
-                match model.state {
-                    RunningState::Running => {}
-                    RunningState::Quiting => {
-                        break;
-                    }
-                }
+            if self.is_quitting().await {
+                break;
             }
 
             let event = event::read().expect("Failed to read event");
@@ -54,6 +47,7 @@ impl App {
 
     async fn handle_key_event(&self, key_event: event::KeyEvent) {
         let mut model = self.model.lock().await;
+
         match key_event {
             event::KeyEvent {
                 code: event::KeyCode::Char(ch),
@@ -75,14 +69,16 @@ impl App {
     ) {
         loop {
             tokio::time::sleep(fps_duration).await;
-            {
-                let mut model = model.lock().await;
-                terminal
-                    .draw(|frame| {
-                        model.draw(frame);
-                    })
-                    .expect("Failed to draw");
-            }
+
+            let mut model = model.lock().await;
+            terminal
+                .draw(|frame| model.draw(frame))
+                .expect("Failed to draw");
         }
+    }
+
+    async fn is_quitting(&self) -> bool {
+        let model = self.model.lock().await;
+        matches!(model.state, RunningState::Quiting)
     }
 }
